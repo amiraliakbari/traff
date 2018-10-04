@@ -12,16 +12,25 @@ class DeviceAdmin(admin.ModelAdmin):
 
 
 class TrafficSummaryAdmin(admin.ModelAdmin):
-    list_display = ['timestamp', 'device', 'dst', 'protocol', 'packets_count', 'packets_size']
+    list_display = ['timestamp', 'device', 'dst', 'protocol', 'rx_packets', 'rx_bytes', 'tx_packets', 'tx_bytes']
     list_filter = ['device', 'protocol']
     date_hierarchy = 'timestamp'
 
 
 class TrafficTestAdmin(admin.ModelAdmin):
-    list_display = ['name', 'device', 'timestamp_start', 'timestamp_end', 'packets_count', 'packets_size']
+    list_display = ['name', 'device', 'timestamp_start', 'timestamp_end', 'rx_packets', 'rx_bytes', 'tx_packets', 'tx_bytes', 'dst_ips_count', 'dns_queries_count', 'http_hosts_count']
     list_filter = ['device']
     date_hierarchy = 'timestamp_start'
     actions = ['do_calculate']
+
+    def dst_ips_count(self, obj):
+        return (obj.dst_ips).count('\n')
+
+    def dns_queries_count(self, obj):
+        return (obj.dns_queries).count('\n')
+
+    def http_hosts_count(self, obj):
+        return (obj.http_hosts).count('\n')
 
     def do_calculate(self, request, queryset):
         affected = 0

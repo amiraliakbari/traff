@@ -24,7 +24,7 @@ class Protocol(models.Model):
         # Normalize
         if ':ip:tcp:http:' in proto or proto.endswith(':ip:tcp:http'):
             proto = 'http'
-        elif proto.endswith(':ip:tcp'):
+        elif proto.endswith(':ip:tcp') or proto.endswith(':ip:tcp:data'):
             proto = 'tcp'
         elif ':ip:tcp:ssl:' in proto or proto.endswith(':ip:tcp:ssl'):
             proto = 'ssl'
@@ -34,6 +34,14 @@ class Protocol(models.Model):
             proto = 'udp'
         elif ':ip:udp:dns:' in proto or proto.endswith(':ip:udp:dns'):
             proto = 'dns'
+        elif proto.endswith(':ip:udp:ntp'):
+            proto = 'ntp'
+        elif proto.endswith(':ip:igmp:igmp'):
+            proto = 'igmp'
+        elif proto.endswith(':ip:udp:bootp'):
+            proto = 'bootp'
+        elif proto.startswith('eth:ethertype:ipv6:'):
+            proto = 'ipv6'
         # Get
         if proto not in cls._protocol_cache:
             try:
@@ -75,8 +83,10 @@ class TrafficSummary(models.Model):
     dst = models.GenericIPAddressField(protocol='IPv4')
     protocol = models.ForeignKey(Protocol, on_delete=models.CASCADE, db_index=True)
     # Stats
-    packets_count = models.BigIntegerField(default=0)
-    packets_size = models.BigIntegerField(default=0)
+    tx_packets = models.BigIntegerField(default=0)
+    tx_bytes = models.BigIntegerField(default=0)
+    rx_packets = models.BigIntegerField(default=0)
+    rx_bytes = models.BigIntegerField(default=0)
     # Details
     proto_details1 = models.TextField(blank=True, null=True)
     proto_details2 = models.TextField(blank=True, null=True)
@@ -118,8 +128,10 @@ class TrafficTest(models.Model):
     timestamp_start = models.DateTimeField(db_index=True)
     timestamp_end = models.DateTimeField(db_index=True)
     # Stats
-    packets_count = models.BigIntegerField(default=0)
-    packets_size = models.BigIntegerField(default=0)
+    tx_packets = models.BigIntegerField(default=0)
+    tx_bytes = models.BigIntegerField(default=0)
+    rx_packets = models.BigIntegerField(default=0)
+    rx_bytes = models.BigIntegerField(default=0)
     # Details
     dst_ips = models.TextField(blank=True, null=True)
     dns_queries = models.TextField(blank=True, null=True)
@@ -131,23 +143,29 @@ class TrafficTest(models.Model):
 
     def calculate(self):
         summaries = TrafficSummary.objects.filter(timestamp__gte=self.timestamp_start, timestamp__lt=self.timestamp_end, device=self.device).select_related('protocol')
-        packets_count = 0
-        packets_size = 0
+        tx_packets = 0
+        tx_bytes = 0
+        rx_packets = 0
+        rx_bytes = 0
         dst_ips = set()
         dns_queries = set()
         http_hosts = set()
         http_urls = set()
         for s in summaries:
-            packets_count += s.packets_count
-            packets_size += s.packets_size
+            tx_packets += s.tx_packets
+            tx_bytes += s.tx_bytes
+            rx_packets += s.rx_packets
+            rx_bytes += s.rx_bytes
             dst_ips.add(s.dst)
             if s.protocol.is_dns:
                 dns_queries |= s.get_detail(1)
             elif s.protocol.is_http:
                 http_hosts |= s.get_detail(1)
                 http_urls |= s.get_detail(2)
-        self.packets_count = packets_count
-        self.packets_size = packets_size
+        self.tx_packets = tx_packets
+        self.tx_bytes = tx_bytes
+        self.rx_packets = rx_packets
+        self.rx_bytes = rx_bytes
         self.dst_ips = '\n'.join(dst_ips)
         self.dns_queries = '\n'.join(dns_queries)
         self.http_hosts = '\n'.join(http_hosts)
