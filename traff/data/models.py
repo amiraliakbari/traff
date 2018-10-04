@@ -16,6 +16,10 @@ class Protocol(models.Model):
         return self.code == 'dns'
 
     @property
+    def is_ssl(self):
+        return self.code == 'ssl'
+
+    @property
     def is_http(self):
         return self.code == 'http'
 
@@ -137,6 +141,7 @@ class TrafficTest(models.Model):
     dns_queries = models.TextField(blank=True, null=True)
     http_hosts = models.TextField(blank=True, null=True)
     http_urls = models.TextField(blank=True, null=True)
+    https_hosts = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -151,6 +156,7 @@ class TrafficTest(models.Model):
         dns_queries = set()
         http_hosts = set()
         http_urls = set()
+        https_hosts = set()
         for s in summaries:
             tx_packets += s.tx_packets
             tx_bytes += s.tx_bytes
@@ -159,6 +165,8 @@ class TrafficTest(models.Model):
             dst_ips.add(s.dst)
             if s.protocol.is_dns:
                 dns_queries |= s.get_detail(1)
+            elif s.protocol.is_ssl:
+                https_hosts |= s.get_detail(1)
             elif s.protocol.is_http:
                 http_hosts |= s.get_detail(1)
                 http_urls |= s.get_detail(2)
@@ -170,4 +178,5 @@ class TrafficTest(models.Model):
         self.dns_queries = '\n'.join(dns_queries)
         self.http_hosts = '\n'.join(http_hosts)
         self.http_urls = '\n'.join(http_urls)
+        self.https_hosts = '\n'.join(https_hosts)
         self.save()

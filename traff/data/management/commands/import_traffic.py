@@ -7,7 +7,7 @@ from django.core.management.base import BaseCommand
 from traff.data.models import Protocol, Device, TrafficSummary
 
 
-def process_packet(timestamp, device, dst, protocol=None, is_tx=False, packet_size=0, icmp_type=None, dns_query=None, http_host=None, http_url=None):
+def process_packet(timestamp, device, dst, protocol=None, is_tx=False, packet_size=0, icmp_type=None, dns_query=None, http_host=None, http_url=None, https_host=None):
     # Traffic summary
     protocol = Protocol.parse(protocol)
     summary = TrafficSummary.get(timestamp, device=device, dst=dst, protocol=protocol)
@@ -19,7 +19,7 @@ def process_packet(timestamp, device, dst, protocol=None, is_tx=False, packet_si
         summary.rx_bytes += packet_size
 
     # Update details
-    detail1 = icmp_type or dns_query or http_host
+    detail1 = icmp_type or dns_query or http_host or https_host
     if detail1:
         summary.add_detail(1, detail1)
     detail2 = http_url
@@ -50,6 +50,7 @@ class Command(BaseCommand):
                     dns_query = a[10]
                     http_host = a[11]
                     http_url = a[12]
+                    https_host = a[13]
 
                     # Handle download/upload
                     src_is_local = src.startswith('10.')
@@ -79,7 +80,7 @@ class Command(BaseCommand):
                     devices.add(device)
 
                     # Process packet
-                    process_packet(timestamp, device, dst, protocol=protocol, is_tx=is_tx, packet_size=packet_size, icmp_type=icmp_type, dns_query=dns_query, http_host=http_host, http_url=http_url)
+                    process_packet(timestamp, device, dst, protocol=protocol, is_tx=is_tx, packet_size=packet_size, icmp_type=icmp_type, dns_query=dns_query, http_host=http_host, http_url=http_url, https_host=https_host)
                     n_ok += 1
                     print('.', end='')
                 except Exception as e:
